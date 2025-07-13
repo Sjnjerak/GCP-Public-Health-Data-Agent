@@ -8,7 +8,7 @@ from google.cloud import bigquery
 from google.api_core import exceptions
 from pipeline.config import GCP_PROJECT_ID, BIGQUERY_DATASET_ID
 
-def upload_to_bigquery(csv_path, table_id):
+def upload_to_bigquery(csv_path, table_id, column_metadata=None):
     """Uploads a CSV file to BigQuery."""
     if not csv_path:
         return
@@ -41,19 +41,37 @@ def upload_to_bigquery(csv_path, table_id):
         job.result()
         print(f"Successfully loaded {job.output_rows} rows into {full_table_id}")
 
+        if column_metadata:
+            print(f"Updating column descriptions for {full_table_id}...")
+            try:
+                table = client.get_table(full_table_id)
+                new_schema = []
+                schema_changed = False
+                for field in table.schema:
+                    description = field.description
+                    if field.name in column_metadata and "description" in column_metadata[field.name]:
+                        new_description = column_metadata[field.name]["description"]
+                        if description != new_description:
+                            description = new_description
+                            schema_changed = True
+
+                    new_field = bigquery.SchemaField.from_api_repr(field.to_api_repr())
+                    new_field._description = description
+                    new_schema.append(new_field)
+
+                if schema_changed:
+                    table.schema = new_schema
+                    client.update_table(table, ["schema"])
+                    print("Successfully updated table schema with descriptions.")
+                else:
+                    print("No schema description changes needed.")
+
+            except Exception as e:
+                print(
+                    f"Could not update table schema for {full_table_id}: {e}", file=sys.stderr
+                )
+
     except exceptions.GoogleAPICallError as e:
         print(f"BigQuery API Error: {e}", file=sys.stderr)
     except Exception as e:
         print(f"An unexpected error occurred during BigQuery upload: {e}", file=sys.stderr)
-
-def main():
-    """Main function to upload a file."""
-    parser = argparse.ArgumentParser(description="Upload a CSV file to BigQuery.")
-    parser.add_argument("csv_path", help="The path to the input .csv file.")
-    parser.add_argument("table_id", help="The BigQuery table ID.")
-    args = parser.parse_args()
-
-    upload_to_bigquery(args.csv_path, args.table_id)
-
-if __name__ == "__main__":
-    main()

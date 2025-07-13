@@ -42,8 +42,10 @@ CYCLE_SUFFIX_MAP = {
 CWD = os.path.join(os.getcwd(), "0_data_preparation")
 XPT_DIR = os.path.join(CWD, "xpt_files")
 CSV_DIR = os.path.join(CWD, "csv_files")
+DOC_DIR = os.path.join(CWD, "doc_files")
 
 def setup_directories():
     """Create local directories."""
     os.makedirs(XPT_DIR, exist_ok=True)
     os.makedirs(CSV_DIR, exist_ok=True)
+    os.makedirs(DOC_DIR, exist_ok=True)

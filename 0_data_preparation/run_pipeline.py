@@ -9,9 +9,10 @@ from pipeline.config import (
     CSV_DIR,
     setup_directories,
 )
-from pipeline.download import download_nhanes_file, get_file_suffix
+from pipeline.download import download_nhanes_file, download_nhanes_doc, get_file_suffix
 from pipeline.convert import convert_xpt_to_csv
 from pipeline.upload import upload_to_bigquery
+from pipeline.parser import parse_nhanes_doc
 
 
 def main():
@@ -26,11 +27,19 @@ def main():
             table_id_prefix = prefix.replace("P_", "")
             table_id = f"{table_id_prefix}{suffix}_{cycle.replace('-', '_')}"
 
+            # Download the data file
             xpt_path = download_nhanes_file(cycle, prefix, suffix)
+            # Download the documentation file
+            doc_path = download_nhanes_doc(cycle, prefix, suffix)
+
+            column_metadata = {}
+            if doc_path:
+                column_metadata = parse_nhanes_doc(doc_path)
+
             if xpt_path and os.path.exists(xpt_path) and os.path.getsize(xpt_path) > 0:
-                csv_path = convert_xpt_to_csv(xpt_path)
+                csv_path = convert_xpt_to_csv(xpt_path, column_metadata)
                 if csv_path:
-                    upload_to_bigquery(csv_path, table_id)
+                    upload_to_bigquery(csv_path, table_id, column_metadata)
             else:
                 print(f"Skipping conversion and upload for {prefix} due to download failure.")
             print("-" * 20)

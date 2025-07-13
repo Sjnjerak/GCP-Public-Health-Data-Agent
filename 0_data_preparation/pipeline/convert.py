@@ -8,8 +8,8 @@ import pandas as pd
 import argparse
 from pipeline.config import CSV_DIR
 
-def convert_xpt_to_csv(xpt_path):
-    """Converts an XPT file to CSV."""
+def convert_xpt_to_csv(xpt_path, column_metadata=None):
+    """Converts an XPT file to CSV, optionally applying metadata."""
     if not xpt_path or not os.path.exists(xpt_path):
         print(f"Error: Input file not found at '{xpt_path}'", file=sys.stderr)
         return None
@@ -21,6 +21,19 @@ def convert_xpt_to_csv(xpt_path):
     try:
         print(f"Reading XPT file: {xpt_path}...")
         df = pd.read_sas(xpt_path, format="xport")
+
+        if column_metadata:
+            print("Applying column and value descriptions...")
+            # Create a copy of the columns to iterate over
+            for col in df.columns.copy():
+                if col in column_metadata:
+                    # Apply value replacements
+                    if 'values' in column_metadata[col] and column_metadata[col]['values']:
+                        df[col] = df[col].replace(column_metadata[col]['values'])
+                    # Rename column to its description if available
+                    if 'description' in column_metadata[col] and column_metadata[col]['description']:
+                        df.rename(columns={col: column_metadata[col]['description']}, inplace=True)
+
         print(f"Saving to CSV file: {csv_path}...")
         df.to_csv(csv_path, index=False)
         print(f"Successfully converted '{xpt_path}' to '{csv_path}'")
